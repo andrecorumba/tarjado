@@ -365,6 +365,58 @@
     font-weight: 600;
   }
 
+  /* ─── Color swatches ─────────────────────────────────── */
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .color-swatch {
+    width: 26px;
+    height: 26px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.12s, border-color 0.12s;
+    flex-shrink: 0;
+    outline: none;
+    padding: 0;
+  }
+
+  .color-swatch:hover { transform: scale(1.18); }
+  .color-swatch.active { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent-dim); }
+
+  .color-custom {
+    width: 26px;
+    height: 26px;
+    border: 1px dashed var(--border);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-mute);
+    transition: border-color 0.15s, color 0.15s;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .color-custom:hover { border-color: var(--accent); color: var(--accent); }
+  .color-custom.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-dim); }
+
+  .color-custom input[type="color"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+  }
+
+  .color-custom svg { width: 13px; height: 13px; pointer-events: none; }
+
   textarea {
     width: 100%;
     padding: 8px 10px;
@@ -718,7 +770,7 @@
         v1.0 · Código aberto<br/>
         100% no navegador
       </div>
-      <a href="#" class="gh-link" id="ghLink" title="Ver código no GitHub" aria-label="GitHub">
+      <a href="https://github.com/andrecorumba/tarjado" target="_blank" rel="noopener" class="gh-link" id="ghLink" title="Ver código no GitHub" aria-label="GitHub">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
         </svg>
@@ -786,6 +838,28 @@
         <div class="field">
           <label for="wmText">Texto</label>
           <textarea id="wmText" placeholder="Ex: Cópia para Banco XYZ&#10;Cadastro · 30/04/2026"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Cor da marca d'água</label>
+          <div class="color-row">
+            <button class="color-swatch active" data-color="#dc1e1e" style="background:#dc1e1e;" title="Vermelho"></button>
+            <button class="color-swatch" data-color="#000000" style="background:#000000; border-color:#444;" title="Preto"></button>
+            <button class="color-swatch" data-color="#ffffff" style="background:#ffffff; border-color:#aaa;" title="Branco"></button>
+            <button class="color-swatch" data-color="#1a6fdc" style="background:#1a6fdc;" title="Azul"></button>
+            <button class="color-swatch" data-color="#f97316" style="background:#f97316;" title="Laranja"></button>
+            <button class="color-swatch" data-color="#a855f7" style="background:#a855f7;" title="Roxo"></button>
+            <label class="color-custom" id="colorCustomLabel" title="Cor personalizada">
+              <input type="color" id="wmColorPicker" value="#dc1e1e" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
+                <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
+                <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
+                <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+              </svg>
+            </label>
+          </div>
         </div>
 
         <div class="field">
@@ -884,7 +958,7 @@
 
   <footer>
     <div>Tarjado · Software livre · Licença MIT</div>
-    <div><a href="#" id="ghFooter">github.com/seu-repositório</a></div>
+    <div><a href="https://github.com/andrecorumba/tarjado" target="_blank" rel="noopener" id="ghFooter">github.com/andrecorumba/tarjado</a></div>
   </footer>
 
 </div>
@@ -913,9 +987,14 @@
   const canvasInfo  = document.getElementById('canvasInfo');
   const downloadBtn = document.getElementById('downloadBtn');
 
+  const wmColorPicker    = document.getElementById('wmColorPicker');
+  const colorSwatches    = document.querySelectorAll('.color-swatch');
+  const colorCustomLabel = document.getElementById('colorCustomLabel');
+
   let originalImage = null;
   let originalFileName = '';
-  let currentPos = 'full';
+  let currentPos  = 'full';
+  let currentColor = '#dc1e1e';
 
   const densityLabels = ['mínima','baixa','média','alta','máxima'];
 
@@ -987,6 +1066,28 @@
   grayscale.addEventListener('change', render);
   wmText.addEventListener('input', render);
 
+  // ── Color swatches ───────────────────────────────────
+  function setColor(hex, activeSwatch) {
+    currentColor = hex;
+    wmColorPicker.value = hex;
+    colorSwatches.forEach(s => s.classList.remove('active'));
+    colorCustomLabel.classList.remove('active');
+    colorCustomLabel.style.background = '';
+    if (activeSwatch) {
+      activeSwatch.classList.add('active');
+    } else {
+      colorCustomLabel.classList.add('active');
+      colorCustomLabel.style.background = hex;
+    }
+    render();
+  }
+
+  colorSwatches.forEach(swatch => {
+    swatch.addEventListener('click', () => setColor(swatch.dataset.color, swatch));
+  });
+
+  wmColorPicker.addEventListener('input', () => setColor(wmColorPicker.value, null));
+
   // ── Grayscale via pixel manipulation (cross-browser) ─
   function applyGrayscale(w, h) {
     const imgData = ctx.getImageData(0, 0, w, h);
@@ -1033,10 +1134,15 @@
     const fontSize = Math.max(12, baseDim * sizePct);
     const lines    = text.split('\n');
 
+    const n = parseInt(currentColor.replace('#', ''), 16);
+    const cr = (n >> 16) & 255, cg = (n >> 8) & 255, cb = n & 255;
+    const bright = (cr * 299 + cg * 587 + cb * 114) / 1000;
+    const outline = bright > 140 ? '0,0,0' : '255,255,255';
+
     ctx.save();
     ctx.font         = `500 ${fontSize}px "IBM Plex Sans", -apple-system, sans-serif`;
-    ctx.fillStyle    = `rgba(220,30,30,${opacity})`;
-    ctx.strokeStyle  = `rgba(255,255,255,${opacity * 0.4})`;
+    ctx.fillStyle    = `rgba(${cr},${cg},${cb},${opacity})`;
+    ctx.strokeStyle  = `rgba(${outline},${opacity * 0.35})`;
     ctx.lineWidth    = Math.max(1, fontSize * 0.04);
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
