@@ -618,6 +618,26 @@
     box-shadow: 0 6px 28px rgba(0,0,0,.55);
   }
 
+  .drag-hint {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-dim);
+    color: var(--accent);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    pointer-events: none;
+    white-space: nowrap;
+    display: none;
+  }
+
+  .drag-hint.visible { display: block; }
+
   .empty-state {
     text-align: center;
     color: var(--ink-mute);
@@ -924,6 +944,7 @@
             <p>Aguardando documento</p>
           </div>
           <canvas id="canvas" style="display:none;"></canvas>
+          <div class="drag-hint" id="dragHint">Arraste para reposicionar</div>
         </div>
         <div class="action-bar">
           <div class="canvas-info" id="canvasInfo">— · —</div>
@@ -995,6 +1016,74 @@
   let originalFileName = '';
   let currentPos  = 'full';
   let currentColor = '#dc1e1e';
+  let customPos   = null; // {x,y} fractions 0..1 when user drags
+  let isDragging  = false;
+
+  const dragHint = document.getElementById('dragHint');
+
+  function getCanvasPos(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (clientY - rect.top)  / rect.height))
+    };
+  }
+
+  function updateCanvasCursor() {
+    if (originalImage && currentPos !== 'full') {
+      canvas.style.cursor = isDragging ? 'grabbing' : 'grab';
+    } else {
+      canvas.style.cursor = 'default';
+    }
+  }
+
+  function updateDragHint() {
+    if (originalImage && currentPos !== 'full') {
+      dragHint.classList.add('visible');
+    } else {
+      dragHint.classList.remove('visible');
+    }
+  }
+
+  // Mouse drag on canvas
+  canvas.addEventListener('mousedown', e => {
+    if (!originalImage || currentPos === 'full') return;
+    isDragging = true;
+    customPos = getCanvasPos(e.clientX, e.clientY);
+    updateCanvasCursor();
+    render();
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    customPos = getCanvasPos(e.clientX, e.clientY);
+    render();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) { isDragging = false; updateCanvasCursor(); }
+  });
+
+  // Touch drag on canvas
+  canvas.addEventListener('touchstart', e => {
+    if (!originalImage || currentPos === 'full') return;
+    isDragging = true;
+    const t = e.touches[0];
+    customPos = getCanvasPos(t.clientX, t.clientY);
+    render();
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    if (!isDragging) return;
+    const t = e.touches[0];
+    customPos = getCanvasPos(t.clientX, t.clientY);
+    render();
+    e.preventDefault();
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', () => { isDragging = false; });
 
   const densityLabels = ['mínima','baixa','média','alta','máxima'];
 
@@ -1029,6 +1118,8 @@
         canvas.style.display = 'block';
         downloadBtn.disabled = false;
         render();
+        updateCanvasCursor();
+        updateDragHint();
       };
       img.src = ev.target.result;
     };
@@ -1045,6 +1136,9 @@
     canvas.style.display = 'none';
     downloadBtn.disabled = true;
     canvasInfo.textContent = '— · —';
+    customPos = null;
+    updateCanvasCursor();
+    updateDragHint();
   });
 
   // ── Position grid ────────────────────────────────────
@@ -1054,6 +1148,9 @@
       posGrid.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentPos = btn.dataset.pos;
+      customPos = null;
+      updateCanvasCursor();
+      updateDragHint();
       render();
     });
   });
@@ -1172,16 +1269,21 @@
       const halfH      = lineHeight * lines.length / 2;
       let x, y;
 
-      switch (currentPos) {
-        case 'tl': x = padding + halfW;     y = padding + halfH;     break;
-        case 'tc': x = w / 2;               y = padding + halfH;     break;
-        case 'tr': x = w - padding - halfW; y = padding + halfH;     break;
-        case 'ml': x = padding + halfW;     y = h / 2;               break;
-        case 'mr': x = w - padding - halfW; y = h / 2;               break;
-        case 'bl': x = padding + halfW;     y = h - padding - halfH; break;
-        case 'bc': x = w / 2;               y = h - padding - halfH; break;
-        case 'br': x = w - padding - halfW; y = h - padding - halfH; break;
-        default:   x = w / 2;               y = h / 2;
+      if (customPos !== null) {
+        x = customPos.x * w;
+        y = customPos.y * h;
+      } else {
+        switch (currentPos) {
+          case 'tl': x = padding + halfW;     y = padding + halfH;     break;
+          case 'tc': x = w / 2;               y = padding + halfH;     break;
+          case 'tr': x = w - padding - halfW; y = padding + halfH;     break;
+          case 'ml': x = padding + halfW;     y = h / 2;               break;
+          case 'mr': x = w - padding - halfW; y = h / 2;               break;
+          case 'bl': x = padding + halfW;     y = h - padding - halfH; break;
+          case 'bc': x = w / 2;               y = h - padding - halfH; break;
+          case 'br': x = w - padding - halfW; y = h - padding - halfH; break;
+          default:   x = w / 2;               y = h / 2;
+        }
       }
 
       ctx.translate(x, y);
