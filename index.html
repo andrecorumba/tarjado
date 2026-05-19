@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --bg:           #07090d;
@@ -300,6 +301,52 @@
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--ink-mute);
+  }
+
+  /* ─── PDF navigation ─────────────────────────────────── */
+  .pdf-nav {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding: 5px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border-soft);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    gap: 8px;
+  }
+
+  .pdf-nav.show { display: flex; }
+
+  .pdf-nav button {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+
+  .pdf-nav button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .pdf-nav button:disabled { opacity: 0.25; cursor: not-allowed; }
+
+  .pdf-nav-label {
+    font-size: 10px;
+    color: var(--ink);
+    letter-spacing: 0.1em;
   }
 
   .drop input { display: none; }
@@ -821,12 +868,17 @@
             <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
           </svg>
           <div class="drop-text"><strong>Clique para escolher</strong> ou arraste a foto aqui</div>
-          <div class="drop-hint">JPG · PNG · WEBP</div>
-          <input type="file" id="fileInput" accept="image/*" />
+          <div class="drop-hint">JPG · PNG · WEBP · PDF</div>
+          <input type="file" id="fileInput" accept="image/*,.pdf" />
         </label>
         <div class="file-loaded" id="fileLoaded">
           <div class="file-name-row"><span id="fileName"></span></div>
           <button type="button" id="clearFile">remover</button>
+        </div>
+        <div class="pdf-nav" id="pdfNav">
+          <button id="pdfPrev" disabled>&#8592;</button>
+          <span class="pdf-nav-label" id="pdfPageLabel">1 / 1</span>
+          <button id="pdfNext" disabled>&#8594;</button>
         </div>
       </div>
 
@@ -986,6 +1038,9 @@
 
 <script>
 (function(){
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
   const fileInput   = document.getElementById('fileInput');
   const dropZone    = document.getElementById('dropZone');
   const fileLoaded  = document.getElementById('fileLoaded');
@@ -1007,6 +1062,10 @@
   const emptyState  = document.getElementById('emptyState');
   const canvasInfo  = document.getElementById('canvasInfo');
   const downloadBtn = document.getElementById('downloadBtn');
+  const pdfNav      = document.getElementById('pdfNav');
+  const pdfPrev     = document.getElementById('pdfPrev');
+  const pdfNext     = document.getElementById('pdfNext');
+  const pdfPageLabel= document.getElementById('pdfPageLabel');
 
   const wmColorPicker    = document.getElementById('wmColorPicker');
   const colorSwatches    = document.querySelectorAll('.color-swatch');
@@ -1016,8 +1075,12 @@
   let originalFileName = '';
   let currentPos  = 'full';
   let currentColor = '#dc1e1e';
-  let customPos   = null; // {x,y} fractions 0..1 when user drags
+  let customPos   = null;
   let isDragging  = false;
+
+  let pdfDoc        = null;
+  let pdfPageNum    = 1;
+  let pdfTotalPages = 0;
 
   const dragHint = document.getElementById('dragHint');
 
@@ -1102,10 +1165,14 @@
     e.preventDefault();
     dropZone.classList.remove('drag-over');
     const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith('image/')) loadFile(f);
+    if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) loadFile(f);
   });
 
   function loadFile(file) {
+    if (file.type === 'application/pdf') {
+      loadPdf(file);
+      return;
+    }
     originalFileName = file.name.replace(/\.[^.]+$/, '');
     const reader = new FileReader();
     reader.onload = ev => {
@@ -1126,6 +1193,48 @@
     reader.readAsDataURL(file);
   }
 
+  async function loadPdf(file) {
+    originalFileName = file.name.replace(/\.[^.]+$/, '');
+    const arrayBuffer = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    pdfTotalPages = pdfDoc.numPages;
+    pdfPageNum = 1;
+
+    fileName.textContent = file.name;
+    fileLoaded.classList.add('show');
+    emptyState.style.display = 'none';
+    canvas.style.display = 'block';
+    downloadBtn.disabled = false;
+
+    if (pdfTotalPages > 1) pdfNav.classList.add('show');
+    updatePdfNavLabel();
+    await renderPdfPage(pdfPageNum);
+    updateCanvasCursor();
+    updateDragHint();
+  }
+
+  async function renderPdfPage(num) {
+    const page = await pdfDoc.getPage(num);
+    const MAX_DIM = 2400;
+    let vp = page.getViewport({ scale: 1 });
+    const scale = Math.min(MAX_DIM / vp.width, MAX_DIM / vp.height) * 2;
+    vp = page.getViewport({ scale });
+
+    const off = document.createElement('canvas');
+    off.width  = Math.round(vp.width);
+    off.height = Math.round(vp.height);
+    await page.render({ canvasContext: off.getContext('2d'), viewport: vp }).promise;
+
+    originalImage = { naturalWidth: off.width, naturalHeight: off.height, _pdfCanvas: off };
+    render();
+  }
+
+  function updatePdfNavLabel() {
+    pdfPageLabel.textContent = `${pdfPageNum} / ${pdfTotalPages}`;
+    pdfPrev.disabled = pdfPageNum <= 1;
+    pdfNext.disabled = pdfPageNum >= pdfTotalPages;
+  }
+
   clearFile.addEventListener('click', e => {
     e.preventDefault();
     e.stopPropagation();
@@ -1137,6 +1246,10 @@
     downloadBtn.disabled = true;
     canvasInfo.textContent = '— · —';
     customPos = null;
+    pdfDoc = null;
+    pdfTotalPages = 0;
+    pdfPageNum = 1;
+    pdfNav.classList.remove('show');
     updateCanvasCursor();
     updateDragHint();
   });
@@ -1153,6 +1266,21 @@
       updateDragHint();
       render();
     });
+  });
+
+  // ── PDF navigation ───────────────────────────────────
+  pdfPrev.addEventListener('click', async () => {
+    if (pdfPageNum <= 1) return;
+    pdfPageNum--;
+    updatePdfNavLabel();
+    await renderPdfPage(pdfPageNum);
+  });
+
+  pdfNext.addEventListener('click', async () => {
+    if (pdfPageNum >= pdfTotalPages) return;
+    pdfPageNum++;
+    updatePdfNavLabel();
+    await renderPdfPage(pdfPageNum);
   });
 
   // ── Controls ─────────────────────────────────────────
@@ -1212,7 +1340,11 @@
     canvas.height = h;
 
     ctx.filter = 'none';
-    ctx.drawImage(originalImage, 0, 0, w, h);
+    if (originalImage._pdfCanvas) {
+      ctx.drawImage(originalImage._pdfCanvas, 0, 0, w, h);
+    } else {
+      ctx.drawImage(originalImage, 0, 0, w, h);
+    }
 
     if (grayscale.checked) applyGrayscale(w, h);
 
